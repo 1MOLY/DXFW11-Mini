@@ -437,17 +437,9 @@ namespace dxfw
 
 	namespace _internal
 	{
-		void CDraw::DrawList::Draw(DrawType type, DrawFigure figure)
-		{
 
-		}
 	}
 
 #pragma endregion
 
-}
-
-TEST_FUNCTION
-{
-	dxfw::CRender::Get().GetDrawList()->Draw(dxfw::DrawType::FILLED, dxfw::DrawFigure::RECTANGLE);
 }

@@ -85,11 +85,6 @@ namespace dxfw::_internal{}
 
 // -+-+-+-+-+-+-+- Core Library -+-+-+-+-+-+-+-
 
-namespace dxfw
-{
-	enum class DrawType	  { FILLED, OUTLINE };
-	enum class DrawFigure { TRIANGLE, RECTANGLE, CIRCLE, LINE, TEXT };
-}
 
 namespace dxfw::_internal
 {
@@ -125,9 +120,47 @@ namespace dxfw::_internal
 
 		struct DrawList
 		{
-			void Draw(DrawType type, DrawFigure figure);
+			explicit DrawList(CDraw* owner) : owner(owner){}
+
+			template<bool FILL_>
+			void DrawTriangle(const tex::displc pA,
+							  const tex::displc pB,
+							  const tex::displc pC,
+							  const tex::color color,
+							  const float thickness = 1.f) const
+			{
+				if (FILL_)  { (owner->*DrawTriangleFilled_)(pA, pB, pC, color);		 }
+				else		{ (owner->*DrawTriangle_)(pA, pB, pC, color, thickness); }
+			}
+
+			template<bool FILL_>
+			void DrawRect(const tex::displc position,
+						  const tex::displc size,
+						  const tex::color color,
+						  const float thickness = 1.f) const
+			{
+				if (FILL_)  { (owner->*DrawRectFilled_)(position, size, color);		 }
+				else		{ (owner->*DrawRect_)(position, size, color, thickness); }
+			}
+
+			template<bool FILL_>
+			void DrawCircle(const tex::displc middlePos,
+							const float radius,
+							const tex::color color,
+							const float thickness = 1.f,
+							const uint16_t smooth = 32) const
+			{
+				if (FILL_)	{ (owner->*DrawCircleFilled_)(middlePos, radius, color, smooth);		}
+				else		{ (owner->*DrawCircle_)(middlePos, radius, color, thickness, smooth);	}
+			}
+
+			//! @brief I know wierd name... but Microslop already defined a DrawText function :I
+			void DrawTextt(const std::string& text, tex::displc position, tex::color color, uint16_t fontSize = 16);
+			void DrawLine(tex::displc pA, tex::displc pB, tex::color color, float thickness = 1.f);
 
 		protected:
+
+			CDraw* owner;
 
 			void* Buffer{};
 			size_t Size{};
@@ -152,7 +185,7 @@ namespace dxfw::_internal
 
 			pTriangleFilled	  DrawTriangleFilled_ = &CDraw::DrawTriangleFilled_;
 			pDrawRectFilled	  DrawRectFilled_	  = &CDraw::DrawRectFilled_;
-			pDrawCircleFilled DrawCircleFilled	  = &CDraw::DrawCircleFilled_;
+			pDrawCircleFilled DrawCircleFilled_	  = &CDraw::DrawCircleFilled_;
 
 			pDrawText DrawText_ = &CDraw::DrawText_;
 			pDrawLine DrawLine_ = &CDraw::DrawLine_;
@@ -165,8 +198,10 @@ namespace dxfw::_internal
 	public:
 
 		[[nodiscard]]
-		DrawList* GetDrawList() const noexcept
+		DrawList* GetDrawList() noexcept
 		{
+			DrawList_ = std::make_unique<DrawList>(this);
+
 			return DrawList_.get();
 		}
 	};
