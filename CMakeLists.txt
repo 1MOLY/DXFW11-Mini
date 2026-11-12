@@ -15,7 +15,6 @@ add_library(DXFW11_Mini STATIC
 		src/core/_tex.cpp
 		include/core/_tex.hpp
 		include/com/pch.hpp
-
 )
 
 # -----------------------------------------------------------------------------
@@ -36,6 +35,25 @@ target_link_libraries(DXFW11_Mini PUBLIC
 
 # RUNTIME_OUTPUT_DIRECTORY_xxx = exe, dll ...
 # ARCHIVE_OUTPUT_DIRECTORY_xxx = lib ...
+
+set_target_properties(DXFW11_Mini PROPERTIES
+		ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/.lib"
+		ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/.lib"
+)
+
+
+
+# -+-+-+-+-+-+-+- Testing -+-+-+-+-+-+-+-
+
+add_executable(Tests_
+		tests_/main.cpp
+)
+
+add_dependencies(Tests_ DXFW11_Mini)
+
+target_link_libraries(Tests_ PRIVATE
+	DXFW11_Mini
+)
 
 set_target_properties(DXFW11_Mini PROPERTIES
 		ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/.lib"

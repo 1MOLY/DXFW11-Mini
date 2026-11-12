@@ -11,7 +11,7 @@
 //    | $$    $$| $$  | $$| $$      | $$$    \$$$|   $$ \|   $$ \                    | $$  | $$| $$     |   $$ \
 //     \$$$$$$$  \$$   \$$ \$$       \$$      \$$ \$$$$$$ \$$$$$$                     \$$   \$$ \$$      \$$$$$$
 //
-//
+// ... mini :P... size doesn't matter btw
 //
 #pragma once
 #include "core/_util.hpp"
@@ -57,14 +57,14 @@ namespace dxfw::_internal{}
 
 
 // -+-+-+-+-+-+-+- Debug Build Specific -+-+-+-+-+-+-+-
-
+#define DXFW_TRACING
 
 #ifdef _DEBUG
 
 	#define BUILD_DEBUG 1
 
 	// Prints Trace Points if defined
-	#ifdef TRACING
+	#ifdef DXFW_TRACING
 
 		#define LOG_POINT \
 			printf_s("%s | %s @ %d\n", __FILE__, __FUNCSIG__, __LINE__)
@@ -93,6 +93,8 @@ namespace dxfw::_internal
 	template<typename T>
 	using comptr = ComPtr<T>;
 
+#pragma region CDraw
+
 	//! @brief Internal Drawing Functions. Use class @b CRender to draw!
 	class CDraw {
 
@@ -112,7 +114,7 @@ namespace dxfw::_internal
 	protected:
 
 		CDraw() = default;
-		virtual ~CDraw();
+		virtual ~CDraw() = default;
 
 
 
@@ -129,8 +131,8 @@ namespace dxfw::_internal
 							  const tex::color color,
 							  const float thickness = 1.f) const
 			{
-				if (FILL_)  { (owner->*DrawTriangleFilled_)(pA, pB, pC, color);		 }
-				else		{ (owner->*DrawTriangle_)(pA, pB, pC, color, thickness); }
+				if constexpr (FILL_)	{ (owner->*DrawTriangleFilled_)(pA, pB, pC, color);		 }
+				else					{ (owner->*DrawTriangle_)(pA, pB, pC, color, thickness); }
 			}
 
 			template<bool FILL_>
@@ -139,8 +141,8 @@ namespace dxfw::_internal
 						  const tex::color color,
 						  const float thickness = 1.f) const
 			{
-				if (FILL_)  { (owner->*DrawRectFilled_)(position, size, color);		 }
-				else		{ (owner->*DrawRect_)(position, size, color, thickness); }
+				if constexpr (FILL_)  { (owner->*DrawRectFilled_)(position, size, color);		 }
+				else				  { (owner->*DrawRect_)(position, size, color, thickness);	 }
 			}
 
 			template<bool FILL_>
@@ -150,8 +152,8 @@ namespace dxfw::_internal
 							const float thickness = 1.f,
 							const uint16_t smooth = 32) const
 			{
-				if (FILL_)	{ (owner->*DrawCircleFilled_)(middlePos, radius, color, smooth);		}
-				else		{ (owner->*DrawCircle_)(middlePos, radius, color, thickness, smooth);	}
+				if constexpr (FILL_)	{ (owner->*DrawCircleFilled_)(middlePos, radius, color, smooth);		}
+				else					{ (owner->*DrawCircle_)(middlePos, radius, color, thickness, smooth);	}
 			}
 
 			//! @brief I know wierd name... but Microslop already defined a DrawText function :I
@@ -200,20 +202,27 @@ namespace dxfw::_internal
 		[[nodiscard]]
 		DrawList* GetDrawList() noexcept
 		{
-			DrawList_ = std::make_unique<DrawList>(this);
+			if (!DrawList_)
+				DrawList_ = std::make_unique<DrawList>(this);
 
 			return DrawList_.get();
 		}
 	};
+
+#pragma endregion
+
 }
 
 namespace dxfw
 {
+
+#pragma region CRender
+
 	class CRender : public _internal::CDraw {
 
 	protected:
 
-		enum EWindowType
+		enum class EWindowType
 		{
 			NORMAL,
 			OVERLAY,
@@ -230,14 +239,14 @@ namespace dxfw
 			std::string Title{};
 			std::array<int32_t, 2> Size{};
 			std::array<int32_t, 2> Position{};
-			int32_t TargetFPS{ 60 };
+			uint32_t TargetFPS{ 60 };
 
 			HWND HWnd{};
 
-			DWORD Style{};
-			DWORD ExStyle{};
+			DWORD Style{ 0x0 };
+			DWORD ExStyle{ 0x0 };
 
-			EWindowType WindowType{ NORMAL };
+			EWindowType WindowType{ EWindowType::NORMAL };
 		};
 
 	public:
@@ -252,13 +261,15 @@ namespace dxfw
 		bool DXFW_API InitWindow(std::array<int32_t, 2> Size,
 						std::array<int32_t, 2> Position,
 						const std::string& Title,
-						int32_t TargetFPS = 60,
-						EWindowType WindowType = NORMAL);
+						uint32_t TargetFPS = 60,
+						EWindowType WindowType = EWindowType::NORMAL);
 
 		bool DXFW_API Terminate();
 
-		bool DXFW_API WindowShouldClose() noexcept;
-		void DXFW_API BeginFrame(const std::array<FLOAT, 4>& clearColor);
+		bool DXFW_API WindowShouldClose();
+		void DXFW_API BeginFrame(std::array<FLOAT, 4> &clearColor);
+
+		//! @brief TargetFPS does nothing if vSync is true
 		void DXFW_API EndFrame(bool vSync);
 
 	private:
@@ -274,6 +285,7 @@ namespace dxfw
 		bool DXFW_API OnWindowResize(TWindow& window);
 
 		static bool DXFW_API SetStyle(TWindow& window);
+		static bool DXFW_API EnsureBackgroundColor(EWindowType type, std::array<FLOAT, 4>& color);
 
 		bool m_bInitialized{ false };
 		bool m_bContextExists{ false };
@@ -286,4 +298,7 @@ namespace dxfw
 		_internal::comptr<ID3D11RenderTargetView> m_targetView{};
 		_internal::comptr<IDXGISwapChain> m_swapChain{};
 	};
+
+#pragma endregion
+
 }

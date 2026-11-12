@@ -5,7 +5,6 @@
 
 #include <iostream>
 
-
 namespace dxfw
 {
 
@@ -24,7 +23,22 @@ namespace dxfw
 
 			case WM_SIZE:
 			{
+				if (wparam == SIZE_MINIMIZED)
+					return 0;
 
+				const UINT width  = LOWORD(lparam);
+				const UINT height = HIWORD(lparam);
+
+				if (width == 0 || height == 0)
+					return 0;
+
+				m_window.Size.at(0) = static_cast<int32_t>(width);
+				m_window.Size.at(1) = static_cast<int32_t>(height);
+
+				if (!m_bInitialized && !m_bWindowExists && !m_bContextExists)
+					OnWindowResize(m_window);
+
+				return 0;
 			}
 
 			default:
@@ -66,7 +80,7 @@ namespace dxfw
 	bool DXFW_API CRender::InitWindow(const std::array<int32_t, 2> Size,
 							 const std::array<int32_t, 2> Position,
 							 const std::string &Title,
-							 const int32_t TargetFPS,
+							 const uint32_t TargetFPS,
 							 const EWindowType WindowType)
 	{
 		m_window.Size		= Size;
@@ -75,6 +89,19 @@ namespace dxfw
 		m_window.TargetFPS  = TargetFPS;
 		m_window.WindowType = WindowType;
 		m_window.ClassName  = util::String::GenerateClassName(m_window.Title);
+
+		if (WindowType == EWindowType::OVERLAY)
+		{
+			m_window.Position = { 0, 0 };
+		}
+
+		LOG_POINT;
+
+		if (!SetStyle(m_window))
+		{
+			std::cerr << "Failed to set window style!\n";
+			return false;
+		}
 
 		if (!CreateAppWindow(m_window))
 		{
@@ -91,12 +118,19 @@ namespace dxfw
 
 		m_bInitialized = true;
 
+		std::cout << "Window dwStyle = " << m_window.Style << '\n';
+		std::cout << "Window dwExStyle = " << m_window.ExStyle << '\n';
+
+		LOG_POINT;
+
 		return true;
 	}
 
 	bool DXFW_API CRender::Terminate()
 	{
 		bool exit{ true };
+
+		LOG_POINT;
 
 		if (m_window.HWnd) { exit = DestroyWindow(m_window.HWnd); }
 		m_window.HWnd = nullptr;
@@ -111,13 +145,17 @@ namespace dxfw
 		m_bContextExists 	= false;
 		m_bInitialized	 	= false;
 
+		LOG_POINT;
+
 		return exit != 0;
 	}
 
 	bool DXFW_API CRender::InitContext(TWindow& window)
 	{
-		if (!m_bInitialized || !m_bWindowExists || m_bContextExists)
+		if (m_bInitialized || !m_bWindowExists || m_bContextExists)
 			return false;
+
+		LOG_POINT;
 
 		DXGI_SWAP_CHAIN_DESC scd{};
 		scd.BufferCount = 2;
@@ -136,11 +174,12 @@ namespace dxfw
 
 
 		UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-		#ifdef _DEBUG
+		#if BUILD_DEBUG == 1
 			flags |= D3D11_CREATE_DEVICE_DEBUG;
 		#endif
 		std::cout << "D3D11 Flags: " << flags << '\n';
 
+		LOG_POINT;
 
 		HRESULT hr = D3D11CreateDeviceAndSwapChain(
 			nullptr,
@@ -161,6 +200,7 @@ namespace dxfw
 			return false;
 		}
 
+		LOG_POINT;
 
 		ID3D11Texture2D* backBuffer{};
 		hr = m_swapChain->GetBuffer(
@@ -173,12 +213,20 @@ namespace dxfw
 			return false;
 		}
 
+		LOG_POINT;
+
 		hr = m_device->CreateRenderTargetView(backBuffer, nullptr, m_targetView.GetAddressOf());
 		if (FAILED(hr))
 		{
 			_hr_failed_msg(hr);
+
+			backBuffer->Release();
 			return false;
 		}
+
+		backBuffer->Release();
+
+		LOG_POINT;
 
 		ID3D11RenderTargetView* rtv = m_targetView.Get();
 		m_context->OMSetRenderTargets(1, &rtv, nullptr);
@@ -189,6 +237,8 @@ namespace dxfw
 		vp.MinDepth = 0.F;
 		vp.MaxDepth = 1.F;
 
+		LOG_POINT;
+
 		m_context->RSSetViewports(1, &vp);
 
 		window.Size.at(0) = static_cast<int32_t>(vp.Width);
@@ -196,12 +246,19 @@ namespace dxfw
 
 		m_bContextExists = true;
 
+		LOG_POINT;
+
 		return true;
 	}
 
 	bool DXFW_API CRender::CreateAppWindow(TWindow& window)
 	{
+		if (m_bInitialized || m_bWindowExists || m_bContextExists)
+			return false;
+
 		void* hInstance = GetModuleHandleA(nullptr);
+
+		LOG_POINT;
 
 		WNDCLASSEXA wc{};
 		wc.cbSize = sizeof(WNDCLASSEXA);
@@ -218,11 +275,7 @@ namespace dxfw
 			return false;
 		}
 
-		if (!SetStyle(window))
-		{
-			std::cerr << "Failed to set window style!\n";
-			return false;
-		}
+		LOG_POINT;
 
 		RECT r = {
 			.left = 0,
@@ -236,6 +289,8 @@ namespace dxfw
 			static_cast<int32_t>(r.right - r.left),
 			static_cast<int32_t>(r.bottom - r.top)
 		};
+
+		LOG_POINT;
 
 		window.HWnd = CreateWindowExA(
 			window.ExStyle,
@@ -258,13 +313,38 @@ namespace dxfw
 		}
 		std::cout << "HWND = 0x" << std::hex << std::uppercase << window.HWnd << std::dec << '\n';
 
+		LOG_POINT;
+
+		if (window.WindowType == EWindowType::OVERLAY)
+		{
+			if (!SetLayeredWindowAttributes(window.HWnd, 0, 255, LWA_ALPHA))
+			{
+				std::cerr << "Failed to set transparent window attributes!\n";
+				return false;
+			}
+
+			constexpr MARGINS mrg {
+				.cxLeftWidth    = -1,
+				.cxRightWidth   = -1,
+				.cyTopHeight    = -1,
+				.cyBottomHeight = -1
+			};
+			if (const HRESULT hr = DwmExtendFrameIntoClientArea(window.HWnd, &mrg); FAILED(hr))
+			{
+				_hr_failed_msg(hr);
+				return false;
+			}
+		}
+
+		LOG_POINT;
+
 		m_bWindowExists = true;
 		window.Exists.store(true);
 
 		return true;
 	}
 
-	bool DXFW_API CRender::WindowShouldClose() noexcept
+	bool DXFW_API CRender::WindowShouldClose()
 	{
 		if (!m_bInitialized || !m_bWindowExists || !m_bContextExists)
 			return false;
@@ -280,10 +360,10 @@ namespace dxfw
 			TranslateMessage(&msg);
 			DispatchMessageA(&msg);
 		}
-		return m_window.ShouldClose == 0;
+		return m_window.ShouldClose;
 	}
 
-	void DXFW_API CRender::BeginFrame(const std::array<FLOAT, 4>& clearColor)
+	void DXFW_API CRender::BeginFrame(std::array<FLOAT, 4>& clearColor)
 	{
 		if (!m_bInitialized || !m_bWindowExists || !m_bContextExists)
 			return;
@@ -295,6 +375,12 @@ namespace dxfw
 			&rtv,
 			nullptr
 		);
+
+		if (!EnsureBackgroundColor(m_window.WindowType, clearColor))
+		{
+			std::cerr << "Window Background Alpha was not set correctly for active Window Type!\n";
+			std::cout << "Correcting and continuing...\n";
+		}
 
 		const FLOAT cc[4] = {
 			clearColor.at(0),
@@ -329,9 +415,6 @@ namespace dxfw
 
 	bool DXFW_API CRender::OnWindowResize(TWindow& window)
 	{
-		if (!m_bInitialized || !m_bWindowExists || !m_bContextExists)
-			return false;
-
 		m_context->OMSetRenderTargets(
 			0,
 			nullptr,
@@ -375,6 +458,8 @@ namespace dxfw
 		if (FAILED(hr))
 		{
 			_hr_failed_msg(hr);
+
+			backBuffer->Release();
 			return false;
 		}
 
@@ -391,8 +476,8 @@ namespace dxfw
 		);
 
 		// Rebind the new target and update the drawing viewport after resizing.
-		ID3D11RenderTargetView* target = m_targetView.Get();
-		m_context->OMSetRenderTargets(1, &target, nullptr);
+		ID3D11RenderTargetView* rtv = m_targetView.Get();
+		m_context->OMSetRenderTargets(1, &rtv, nullptr);
 
 		window.Size.at(0) = static_cast<int32_t>(vp.Width);
 		window.Size.at(1) = static_cast<int32_t>(vp.Height);
@@ -405,30 +490,56 @@ namespace dxfw
 		window.Style = 0;
 		window.ExStyle = 0;
 
+		LOG_POINT;
+
 		switch (window.WindowType)
 		{
-			case NORMAL:
+			case EWindowType::NORMAL:
 			{
 				window.Style = WS_OVERLAPPEDWINDOW;
 				window.ExStyle = 0;
 			}
+			break;
 
-			case OVERLAY:
+			case EWindowType::OVERLAY:
 			{
 				window.Style = WS_POPUP;
 				window.ExStyle = WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT;
 			}
+			break;
 
-			case ME_NEED_NAKED:
+			case EWindowType::ME_NEED_NAKED:
 			{
 				window.Style = WS_POPUP;
-				window.ExStyle = 0;
+				window.ExStyle = WS_EX_TOOLWINDOW;
 			}
+			break;
 
 			default:
 				break;
 		}
-		return window.Style != 0 && window.ExStyle != 0;
+		return true;
+	}
+
+	bool DXFW_API CRender::EnsureBackgroundColor(const EWindowType type, std::array<FLOAT, 4> &color)
+	{
+		if (type == EWindowType::OVERLAY && color.at(3) > 0)
+		{
+			color.at(3) = 0.0F;
+
+			return false;
+		}
+
+		if (type == EWindowType::NORMAL || type == EWindowType::ME_NEED_NAKED)
+		{
+			if (color.at(3) <= 0)
+			{
+				color.at(3) = 1.F;
+				return false;
+			}
+			return true;
+		}
+		return true;
 	}
 
 #pragma endregion
