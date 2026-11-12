@@ -33,7 +33,8 @@
 // -+-+-+-+-+-+-+- used namespaces -+-+-+-+-+-+-+-
 
 
-// Public DXFW11 functions, classes, structs, consts, pointers, unions, vectors, ints, chars, unsigned ints, strings, bools, arrays, unsigned chars, constexpr s, half of this, dxfw doesn't even contain but idek
+//! @brief Public DXFW11 functions, classes, structs, consts, pointers, unions, vectors, ints, chars, unsigned ints, strings, bools, arrays, unsigned chars, constexpr s... @n
+//! Half of this, dxfw doesn't even contain but idek
 namespace dxfw{}
 
 // DXFW11 Util things

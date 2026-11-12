@@ -6,28 +6,34 @@
 
 static void render_menu()
 {
-	ImGui::Begin("Test");
-	ImGui::End();
+	ImGui::ShowDemoWindow();
 }
 
 int main()
 {
-	dxfw::CRender::Get().SetMenu_RenderFunction(render_menu);
+	auto& render = dxfw::CRender::Get();
+	render.SetMenu_RenderFunction(render_menu);
 
-	if (!dxfw::CRender::Get().InitWindow({ 1920, 1080 }, {}, "TestWindow", 144, dxfw::EWindowType::OVERLAY))
+	if (!render.InitWindow({ 1920, 1080 }, {}, "TestWindow", 144, dxfw::EWindowType::OVERLAY))
 		return -1;
+
 
 	std::array clearBack { 0.0F, 0.0F, 0.0F, 0.0F };
 
-	while (!dxfw::CRender::Get().WindowShouldClose())
+	while (!render.WindowShouldClose())
 	{
-		dxfw::CRender::Get().ToggleClickThrough(VK_INSERT, true);
+		render.ToggleClickThrough(VK_INSERT, true);
 
-		dxfw::CRender::Get().BeginFrame(clearBack);
+		render.BeginFrame(clearBack);
 
-		dxfw::CRender::Get().GetDrawList(dxfw::EDrawListType::BACK)->AddRect({100.f, 100.f}, {200.f, 200.f}, ImGui::ColorConvertFloat4ToU32({1.f, 0.f, 0.f, 1.f}));
+		render.GetDrawList(dxfw::EDrawListType::BACK)
+			->AddRectFilled({100.f, 100.f},
+							{200.f, 200.f},
+							ImGui::ColorConvertFloat4ToU32(
+								{1.f, 0.f, 0.f, 1.f}
+							));
 
-		dxfw::CRender::Get().EndFrame(false);
+		render.EndFrame(false);
 	}
 
 	return 0;
