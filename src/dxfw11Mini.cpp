@@ -5,12 +5,22 @@
 
 #include <iostream>
 
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
+
+
 namespace dxfw
 {
 #pragma region CRender
 
 	LRESULT CALLBACK CRender::DXFW_WndProc(HWND__ * const hWnd, const UINT msg, const WPARAM wparam, const LPARAM lparam)
 	{
+		if (ImGui::GetCurrentContext() &&
+			ImGui_ImplWin32_WndProcHandler(hWnd, msg, wparam, lparam))
+		{
+			return 1;
+		}
+
 		switch (msg)
 		{
 			case WM_DESTROY:
@@ -99,16 +109,23 @@ namespace dxfw
 		if (!SetStyle(m_window))
 		{
 			std::cerr << "Failed to set window style!\n";
+
+			Terminate();
+
 			return false;
 		}
 
 		if (!CreateAppWindow(m_window))
 		{
+			Terminate();
+
 			return false;
 		}
 
 		if (!InitContext(m_window))
 		{
+			Terminate();
+
 			return false;
 		}
 
@@ -117,21 +134,30 @@ namespace dxfw
 
 		if (!ImGui::CreateContext())
 		{
+			Terminate();
+
 			std::cerr << "Failed to create imgui context!\n";
 			return false;
 		}
+		m_bImGuiCoreInit = true;
 
 		if (!ImGui_ImplWin32_Init(m_window.HWnd))
 		{
+			Terminate();
+
 			std::cerr << "Failed to init Win32 imgui impl!\n";
 			return false;
 		}
+		m_bImGuiWin32Init = true;
 
 		if (!ImGui_ImplDX11_Init(m_device.Get(), m_context.Get()))
 		{
+			Terminate();
+
 			std::cerr << "Failed to init DX11 imgui impl!\n";
 			return false;
 		}
+		m_bImGuiDX11Init = true;
 
 		if (m_menuInitFuncSet)
 			m_menu.Init();
@@ -152,15 +178,39 @@ namespace dxfw
 
 		LOG_POINT;
 
+		if (m_bImGuiDX11Init)
+		{
+			ImGui_ImplDX11_Shutdown();
+			m_bImGuiDX11Init = false;
+		}
+
+		if (m_bImGuiWin32Init)
+		{
+			ImGui_ImplWin32_Shutdown();
+			m_bImGuiWin32Init = false;
+		}
+
+		if (m_bImGuiCoreInit)
+		{
+			ImGui::DestroyContext();
+			m_bImGuiCoreInit = false;
+		}
+
+		if (m_context)
+		{
+			m_context->ClearState();
+			m_context->Flush();
+		}
+
 		if (m_window.HWnd) { exit = DestroyWindow(m_window.HWnd); }
 		m_window.HWnd = nullptr;
 		m_window.Exists.store(false);
 
-		ImGui_ImplDX11_Shutdown();
-		ImGui_ImplWin32_Shutdown();
-		ImGui::DestroyContext();
+		m_targetView.Reset();
+		m_swapChain.Reset();
+		m_context.Reset();
+		m_device.Reset();
 
-		m_window.ClassName.clear();
 		m_window.Title.clear();
 		m_window.Position	= {};
 		m_window.Size		= {};
@@ -171,14 +221,18 @@ namespace dxfw
 
 		LOG_POINT;
 
-		if (exit == false)
+		if (m_bClassRegistered)
 		{
-			UnregisterClassA(m_window.ClassName.c_str(), GetModuleHandleA(nullptr));
+			const bool unregistered = UnregisterClassA(
+				m_window.ClassName.c_str(),
+				GetModuleHandleA(nullptr)
+			) != 0;
+
+			exit = unregistered && exit;
+			m_bClassRegistered = !unregistered;
 		}
-		else
-		{
-			exit = UnregisterClassA(m_window.ClassName.c_str(), GetModuleHandleA(nullptr));
-		}
+
+		m_window.ClassName.clear();
 
 		return exit != 0;
 	}
@@ -207,9 +261,9 @@ namespace dxfw
 
 
 		UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-#if BUILD_DEBUG == 1
-		flags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
+		#if BUILD_DEBUG == 1
+			flags |= D3D11_CREATE_DEVICE_DEBUG;
+		#endif
 		std::cout << "D3D11 Flags: " << flags << '\n';
 
 		LOG_POINT;
@@ -304,6 +358,8 @@ namespace dxfw
 			return false;
 		}
 
+		m_bClassRegistered = true;
+
 		LOG_POINT;
 
 		RECT r = {
@@ -376,7 +432,7 @@ namespace dxfw
 	bool DXFW_API CRender::WindowShouldClose()
 	{
 		if (!m_bInitialized || !m_bWindowExists || !m_bContextExists)
-			return false;
+			return true;
 
 		MSG msg{};
 		while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE) > 0)
@@ -429,11 +485,21 @@ namespace dxfw
 
 		if (m_menuRenderFuncSet)
 		{
-			m_menu.Render();
+			if (m_bToggleMenuVisible)
+			{
+				if (m_showMenu)
+					m_menu.Render();
+			}
+			else
+			{
+				m_menu.Render();
+			}
 		}
-		else
+		else if (static bool printed{ false }; !printed)
 		{
 			std::cerr << "ImGui implementation active without a valid menu rendering function set!\n";
+
+			printed = true;
 		}
 	}
 
@@ -585,26 +651,31 @@ namespace dxfw
 		return true;
 	}
 
-	void DXFW_API CRender::ToggleWindow(TWindow& Window)
+	void DXFW_API CRender::ToggleClickThrough(const int vKey, bool togglesMenuVis)
 	{
+		if (!m_bInitialized || !m_bWindowExists || !m_bContextExists)
+			return;
+
+		m_bToggleMenuVisible = togglesMenuVis;
+
 		static bool wasDown = false;
 
 		const bool isDown =
-			(GetAsyncKeyState(VK_INSERT) & 0x8000) != 0;
+			(GetAsyncKeyState(vKey) & 0x8000) != 0;
 
 		if (isDown && !wasDown)
 		{
 			m_showMenu = !m_showMenu;
 
 			if (m_showMenu)
-				Window.ExStyle &= ~(WS_EX_TRANSPARENT | WS_EX_NOACTIVATE);
+				m_window.ExStyle &= ~(WS_EX_TRANSPARENT | WS_EX_NOACTIVATE);
 			else
-				Window.ExStyle |= WS_EX_TRANSPARENT | WS_EX_NOACTIVATE;
+				m_window.ExStyle |= WS_EX_TRANSPARENT | WS_EX_NOACTIVATE;
 
 			SetWindowLongPtrA(
-				Window.HWnd,
+				m_window.HWnd,
 				GWL_EXSTYLE,
-				Window.ExStyle
+				m_window.ExStyle
 			);
 		}
 		wasDown = isDown;

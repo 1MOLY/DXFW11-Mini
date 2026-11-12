@@ -123,44 +123,51 @@ namespace dxfw::_internal
 namespace dxfw
 {
 
+	// Get | From | Renderer
+	enum class E_GFR
+	{
+		DEVICE,
+		CONTEXT,
+		SWAP_CHAIN,
+		RTV
+	};
+
+	// Get | From | Window
+	enum class E_GFW
+	{
+		CLASS_NAME,
+		TITLE,
+		SIZE,
+		POSITION,
+		TARGET_FPS,
+		HWND,
+		STYLE,
+		EX_STYLE,
+		WINDOW_TYPE
+	};
+
+	enum class EDrawListType
+	{
+		BACK,
+		FORE,
+		WINDOW
+	};
+
+	enum class EWindowType
+	{
+		NORMAL,
+		OVERLAY,
+		ME_NEED_NAKED
+	};
+
 #pragma region CRender
 
+	//! @brief Core Class for rendering. @n
+	//! Implemented ImGui should be used for drawing because i was to lazy.
 	class CRender
 	{
 
 	protected:
-
-		// Get | From | Renderer
-		enum class E_GFR
-		{
-			DEVICE,
-			CONTEXT,
-			SWAP_CHAIN,
-			RTV
-		};
-
-		// Get | From | Window
-		enum class E_GFW
-		{
-			CLASS_NAME,
-			TITLE,
-			SIZE,
-			POSITION,
-			TARGET_FPS,
-			HWND,
-			STYLE,
-			EX_STYLE,
-			WINDOW_TYPE
-		};
-
-		enum class EWindowType
-		{
-			NORMAL,
-			OVERLAY,
-			ME_NEED_NAKED
-		};
-
-		#pragma pack(push, 8)
 
 		struct TWindow
 		{
@@ -181,8 +188,6 @@ namespace dxfw
 
 			EWindowType WindowType{ EWindowType::NORMAL };
 		};
-
-		#pragma pack(pop)
 
 	public:
 
@@ -263,6 +268,21 @@ namespace dxfw
 			}
 		}
 
+		ImDrawList* GetDrawList(const EDrawListType dlType)
+		{
+			switch (dlType)
+			{
+				case EDrawListType::BACK:
+					return ImGui::GetBackgroundDrawList();
+				case EDrawListType::FORE:
+					return ImGui::GetForegroundDrawList();
+				case EDrawListType::WINDOW:
+					return ImGui::GetWindowDrawList();
+				default:
+					return nullptr;
+			}
+		}
+
 		//! @brief Sets the ImGUI Menu @b init function. @b Optional!
 		//! @attention Needs to be set @b before @b InitWindow!
 		template<typename F_>
@@ -273,7 +293,7 @@ namespace dxfw
 				throw std::exception("Do not set the menu init function after InitWindow!");
 			}
 
-			m_menu.Init = std::forward<void()>(fun);
+			m_menu.Init = std::forward<F_>(fun);
 			m_menuInitFuncSet = true;
 		}
 
@@ -287,13 +307,14 @@ namespace dxfw
 				throw std::exception("Do not set the menu rendering function after InitWindow!");
 			}
 
-			m_menu.Render = std::forward<void()>(fun);
+			m_menu.Render = std::forward<F_>(fun);
 			m_menuRenderFuncSet = true;
 		}
 
-		//! @brief Use this for @b ImGUI Menu toggling with @b WindowType set to @b Overlay. @n
+		//! @brief @b ImGUI Menu toggling with @b WindowType set to @b Overlay. @n
 		//! Toggles Click Through
-		void DXFW_API ToggleWindow(TWindow& Window);
+		//! @attention Call this @b before @b BeginFrame
+		void DXFW_API ToggleClickThrough(int vKey, bool togglesMenuVis = false);
 
 		//! @brief Get the current state of ShowMenu
 		[[nodiscard]]
@@ -317,8 +338,14 @@ namespace dxfw
 		bool m_bInitialized{ false };
 		bool m_bContextExists{ false };
 		bool m_bWindowExists{ false };
+		bool m_bClassRegistered{ false };
+
+		bool m_bImGuiCoreInit{ false };
+		bool m_bImGuiWin32Init{ false };
+		bool m_bImGuiDX11Init{ false };
 
 		bool m_showMenu{ false };
+		bool m_bToggleMenuVisible{ false };
 
 		bool m_menuInitFuncSet{ false };
 		bool m_menuRenderFuncSet{ false };
