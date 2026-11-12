@@ -7,7 +7,6 @@
 
 namespace dxfw
 {
-
 #pragma region CRender
 
 	LRESULT CALLBACK CRender::DXFW_WndProc(HWND__ * const hWnd, const UINT msg, const WPARAM wparam, const LPARAM lparam)
@@ -116,29 +115,26 @@ namespace dxfw
 		ShowWindow(m_window.HWnd, SW_SHOW);
 		UpdateWindow(m_window.HWnd);
 
-		#if NEED_IMGUI
+		if (!ImGui::CreateContext())
+		{
+			std::cerr << "Failed to create imgui context!\n";
+			return false;
+		}
 
-			if (!ImGui::CreateContext())
-			{
-				std::cerr << "Failed to create imgui context!\n";
-				return false;
-			}
+		if (!ImGui_ImplWin32_Init(m_window.HWnd))
+		{
+			std::cerr << "Failed to init Win32 imgui impl!\n";
+			return false;
+		}
 
-			if (!ImGui_ImplWin32_Init(m_window.HWnd))
-			{
-				std::cerr << "Failed to init Win32 imgui impl!\n";
-				return false;
-			}
+		if (!ImGui_ImplDX11_Init(m_device.Get(), m_context.Get()))
+		{
+			std::cerr << "Failed to init DX11 imgui impl!\n";
+			return false;
+		}
 
-			if (!ImGui_ImplDX11_Init(m_device.Get(), m_context.Get()))
-			{
-				std::cerr << "Failed to init DX11 imgui impl!\n";
-				return false;
-			}
-
+		if (m_menuInitFuncSet)
 			m_menu.Init();
-
-		#endif
 
 		m_bInitialized = true;
 
@@ -160,11 +156,9 @@ namespace dxfw
 		m_window.HWnd = nullptr;
 		m_window.Exists.store(false);
 
-		#if NEED_IMGUI
-			ImGui_ImplDX11_Shutdown();
-			ImGui_ImplWin32_Shutdown();
-			ImGui::DestroyContext();
-		#endif
+		ImGui_ImplDX11_Shutdown();
+		ImGui_ImplWin32_Shutdown();
+		ImGui::DestroyContext();
 
 		m_window.ClassName.clear();
 		m_window.Title.clear();
@@ -213,9 +207,9 @@ namespace dxfw
 
 
 		UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-		#if BUILD_DEBUG == 1
-			flags |= D3D11_CREATE_DEVICE_DEBUG;
-		#endif
+#if BUILD_DEBUG == 1
+		flags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
 		std::cout << "D3D11 Flags: " << flags << '\n';
 
 		LOG_POINT;
@@ -429,13 +423,18 @@ namespace dxfw
 			cc
 		);
 
-		#if NEED_IMGUI
-			ImGui_ImplDX11_NewFrame();
-			ImGui_ImplWin32_NewFrame();
-			ImGui::NewFrame();
+		ImGui_ImplDX11_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
 
+		if (m_menuRenderFuncSet)
+		{
 			m_menu.Render();
-		#endif
+		}
+		else
+		{
+			std::cerr << "ImGui implementation active without a valid menu rendering function set!\n";
+		}
 	}
 
 	void DXFW_API CRender::EndFrame(const bool vSync)
@@ -443,10 +442,8 @@ namespace dxfw
 		if (!m_bInitialized || !m_bWindowExists || !m_bContextExists)
 			return;
 
-		#if NEED_IMGUI
-			ImGui::Render();
-			ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-		#endif
+		ImGui::Render();
+		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
 		// ReSharper disable once CppTooWideScopeInitStatement
 		const HRESULT hr = m_swapChain->Present(vSync ? 1 : 0, 0);
@@ -588,44 +585,32 @@ namespace dxfw
 		return true;
 	}
 
-	#if NEED_IMGUI == 1
-
-		void DXFW_API CRender::ToggleWindow(TWindow& Window)
-		{
-			static bool wasDown = false;
-
-			const bool isDown =
-				(GetAsyncKeyState(VK_INSERT) & 0x8000) != 0;
-
-			if (isDown && !wasDown)
-			{
-				m_showMenu = !m_showMenu;
-
-				if (m_showMenu)
-					Window.ExStyle &= ~(WS_EX_TRANSPARENT | WS_EX_NOACTIVATE);
-				else
-					Window.ExStyle |= WS_EX_TRANSPARENT | WS_EX_NOACTIVATE;
-
-				SetWindowLongPtrA(
-					Window.HWnd,
-					GWL_EXSTYLE,
-					Window.ExStyle
-				);
-			}
-			wasDown = isDown;
-		}
-
-	#endif
-
-#pragma endregion
-
-#pragma region CDraw
-
-	namespace _internal
+	void DXFW_API CRender::ToggleWindow(TWindow& Window)
 	{
+		static bool wasDown = false;
 
+		const bool isDown =
+			(GetAsyncKeyState(VK_INSERT) & 0x8000) != 0;
+
+		if (isDown && !wasDown)
+		{
+			m_showMenu = !m_showMenu;
+
+			if (m_showMenu)
+				Window.ExStyle &= ~(WS_EX_TRANSPARENT | WS_EX_NOACTIVATE);
+			else
+				Window.ExStyle |= WS_EX_TRANSPARENT | WS_EX_NOACTIVATE;
+
+			SetWindowLongPtrA(
+				Window.HWnd,
+				GWL_EXSTYLE,
+				Window.ExStyle
+			);
+		}
+		wasDown = isDown;
 	}
 
 #pragma endregion
 
 }
+

@@ -16,3 +16,4 @@
 #include <dwmapi.h>
 #include <dxgi.h>
 #include <d3dcompiler.h>
+#include <functional>

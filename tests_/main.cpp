@@ -4,8 +4,16 @@
 #include <dxfw11Mini.hpp>
 
 
+static void render_menu()
+{
+	ImGui::Begin("Test");
+	ImGui::End();
+}
+
 int main()
 {
+	dxfw::CRender::Get().SetMenu_RenderFunction(render_menu);
+
 	if (!dxfw::CRender::Get().InitWindow({ 1920, 1080 }, {}, "TestWindow"))
 		return -1;
 

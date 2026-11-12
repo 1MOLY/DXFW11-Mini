@@ -14,8 +14,6 @@
 // ... mini :P... size doesn't matter btw
 //
 #pragma once
-#include <functional>
-
 #include "core/_util.hpp"
 #include "core/_tex.hpp"
 
@@ -24,24 +22,16 @@
 	#error System not Windows x64
 #endif
 
-// -+-+-+-+-+-+-+- API Flags -+-+-+-+-+-+-+-
-// Should be defined if needed
+// -+-+-+-+-+-+-+- Dependencies -+-+-+-+-+-+-+-
 
-#if defined(DXFW_IMGUI)
 
-	#define NEED_IMGUI 1
+#include <imgui.h>
+#include <imgui_impl_dx11.h>
+#include <imgui_impl_win32.h>
 
-	#include <imgui.h>
-	#include <imgui_impl_dx11.h>
-	#include <imgui_impl_win32.h>
-
-#else
-
-	#define NEED_IMGUI 0
-
-#endif
 
 // -+-+-+-+-+-+-+- used namespaces -+-+-+-+-+-+-+-
+
 
 // Public DXFW11 functions, classes, structs, consts, pointers, unions, vectors, ints, chars, unsigned ints, strings, bools, arrays, unsigned chars, constexpr s, half of this, dxfw doesn't even contain but idek
 namespace dxfw{}
@@ -114,135 +104,20 @@ namespace dxfw::_internal
 	template<typename T>
 	using comptr = ComPtr<T>;
 
-	#if NEED_IMGUI
-		#pragma pack(push, 8)
-
-		struct TMenu_
-		{
-			std::function<void()> Init{};
-			std::function<void()> Render{};
-		};
-
-		#pragma pack(pop)
-	#endif
-
-#pragma region CDraw
-
-	//! @brief Internal Drawing Functions. Use class @b CRender to draw!
-	class CDraw {
-
-	private:
-
-		void DrawTriangle_(tex::displc pA, tex::displc pB, tex::displc pC, tex::color color, float thickness = 1.f);
-		void DrawRect_(tex::displc position, tex::displc size, tex::color color, float thickness = 1.f);
-		void DrawCircle_(tex::displc middlePos, float radius, tex::color color, float thickness = 1.f, uint16_t smooth = 32);
-
-		void DrawTriangleFilled_(tex::displc pA, tex::displc pB, tex::displc pC, tex::color color);
-		void DrawRectFilled_(tex::displc position, tex::displc size, tex::color color);
-		void DrawCircleFilled_(tex::displc middlePos, float radius, tex::color color, uint16_t smooth = 32);
-
-		void DrawText_(const std::string& text, tex::displc position, tex::color color, uint16_t fontSize = 16);
-		void DrawLine_(tex::displc pA, tex::displc pB, tex::color color, float thickness = 1.f);
-
-	protected:
-
-		CDraw() = default;
-		virtual ~CDraw() = default;
-
-
-#pragma region DrawList Declaration
-
-		struct DrawList
-		{
-			explicit DrawList(CDraw* owner) : owner(owner){}
-
-			template<bool FILL_>
-			void DrawTriangle(const tex::displc pA,
-							  const tex::displc pB,
-							  const tex::displc pC,
-							  const tex::color color,
-							  const float thickness = 1.f) const
-			{
-				if constexpr (FILL_)	{ (owner->*DrawTriangleFilled_)(pA, pB, pC, color);		 }
-				else					{ (owner->*DrawTriangle_)(pA, pB, pC, color, thickness); }
-			}
-
-			template<bool FILL_>
-			void DrawRect(const tex::displc position,
-						  const tex::displc size,
-						  const tex::color color,
-						  const float thickness = 1.f) const
-			{
-				if constexpr (FILL_)  { (owner->*DrawRectFilled_)(position, size, color);		 }
-				else				  { (owner->*DrawRect_)(position, size, color, thickness);	 }
-			}
-
-			template<bool FILL_>
-			void DrawCircle(const tex::displc middlePos,
-							const float radius,
-							const tex::color color,
-							const float thickness = 1.f,
-							const uint16_t smooth = 32) const
-			{
-				if constexpr (FILL_)	{ (owner->*DrawCircleFilled_)(middlePos, radius, color, smooth);		}
-				else					{ (owner->*DrawCircle_)(middlePos, radius, color, thickness, smooth);	}
-			}
-
-			//! @brief I know wierd name... but Microslop already defined a DrawText function :I
-			void DrawTextt(const std::string& text, tex::displc position, tex::color color, uint16_t fontSize = 16);
-			void DrawLine(tex::displc pA, tex::displc pB, tex::color color, float thickness = 1.f);
-
-		protected:
-
-			CDraw* owner;
-
-			void* Buffer{};
-			size_t Size{};
-			uint32_t Count{};
-
-		private:
-
-			using pDrawTriangle		= void(CDraw::*)(tex::displc, tex::displc, tex::displc, tex::color, float);
-			using pDrawRect			= void(CDraw::*)(tex::displc, tex::displc, tex::color, float);
-			using pDrawCircle		= void(CDraw::*)(tex::displc, float, tex::color, float, uint16_t);
-
-			using pTriangleFilled	= void(CDraw::*)(tex::displc, tex::displc, tex::displc, tex::color);
-			using pDrawRectFilled	= void(CDraw::*)(tex::displc, tex::displc, tex::color);
-			using pDrawCircleFilled = void(CDraw::*)(tex::displc, float, tex::color, uint16_t);
-
-			using pDrawText = void(CDraw::*)(const std::string&, tex::displc, tex::color, uint16_t);
-			using pDrawLine = void(CDraw::*)(tex::displc, tex::displc, tex::color, float);
-
-			pDrawTriangle DrawTriangle_	= &CDraw::DrawTriangle_;
-			pDrawRect	  DrawRect_		= &CDraw::DrawRect_;
-			pDrawCircle	  DrawCircle_	= &CDraw::DrawCircle_;
-
-			pTriangleFilled	  DrawTriangleFilled_ = &CDraw::DrawTriangleFilled_;
-			pDrawRectFilled	  DrawRectFilled_	  = &CDraw::DrawRectFilled_;
-			pDrawCircleFilled DrawCircleFilled_	  = &CDraw::DrawCircleFilled_;
-
-			pDrawText DrawText_ = &CDraw::DrawText_;
-			pDrawLine DrawLine_ = &CDraw::DrawLine_;
-		};
-
-#pragma endregion
-
-		std::unique_ptr<DrawList> DrawList_{};
-
-	public:
-
-		[[nodiscard]]
-		DrawList* GetDrawList() noexcept
-		{
-			if (!DrawList_)
-				DrawList_ = std::make_unique<DrawList>(this);
-
-			return DrawList_.get();
-		}
+	enum class EGetType_ {
+		RENDERER,
+		WINDOW
 	};
 
-#pragma endregion
+	#pragma pack(push, 8)
 
+	struct TMenu_
+	{
+		std::function<void()> Init{};
+		std::function<void()> Render{};
+	};
+
+	#pragma pack(pop)
 }
 
 namespace dxfw
@@ -250,10 +125,33 @@ namespace dxfw
 
 #pragma region CRender
 
-	class CRender : public _internal::CDraw
+	class CRender
 	{
 
 	protected:
+
+		// Get | From | Renderer
+		enum class E_GFR
+		{
+			DEVICE,
+			CONTEXT,
+			SWAP_CHAIN,
+			RTV
+		};
+
+		// Get | From | Window
+		enum class E_GFW
+		{
+			CLASS_NAME,
+			TITLE,
+			SIZE,
+			POSITION,
+			TARGET_FPS,
+			HWND,
+			STYLE,
+			EX_STYLE,
+			WINDOW_TYPE
+		};
 
 		enum class EWindowType
 		{
@@ -317,34 +215,94 @@ namespace dxfw
 		//! @attention TargetFPS does nothing if @b vSync is true.
 		void DXFW_API EndFrame(bool vSync);
 
-		#if NEED_IMGUI
+		// -+-+-+-+-+-+-+- Get -+-+-+-+-+-+-+-
 
-			//! @brief Sets the ImGUI Menu @b init function. @b Optional!
-			//! @attention Needs to be set @b before @b InitWindow!
-			template<typename F_>
-			void DXFW_API SetMenu_InitFunction(F_&& fun)
+		template<typename T>
+		T* DXFW_API GetFromRenderer(const E_GFR x) noexcept
+		{
+			switch (x)
 			{
-				m_menu.Init = std::forward<void()>(fun);
+				case E_GFR::CONTEXT:
+					return m_context;
+				case E_GFR::DEVICE:
+					return m_device;
+				case E_GFR::RTV:
+					return m_targetView;
+				case E_GFR::SWAP_CHAIN:
+					return m_swapChain;
+				default:
+					return nullptr;
+			}
+		}
+
+		template<typename T>
+		T DXFW_API GetFromWindow(const E_GFW x) noexcept
+		{
+			switch (x)
+			{
+				case E_GFW::CLASS_NAME:
+					return m_window.ClassName;
+				case E_GFW::TITLE:
+					return m_window.Title;
+				case E_GFW::POSITION:
+					return m_window.Position;
+				case E_GFW::SIZE:
+					return m_window.Size;
+				case E_GFW::TARGET_FPS:
+					return m_window.TargetFPS;
+				case E_GFW::STYLE:
+					return m_window.Style;
+				case E_GFW::EX_STYLE:
+					return m_window.ExStyle;
+				case E_GFW::HWND:
+					return m_window.HWnd;
+				case E_GFW::WINDOW_TYPE:
+					return m_window.WindowType;
+				default:
+					return {};
+			}
+		}
+
+		//! @brief Sets the ImGUI Menu @b init function. @b Optional!
+		//! @attention Needs to be set @b before @b InitWindow!
+		template<typename F_>
+		void DXFW_API SetMenu_InitFunction(F_&& fun)
+		{
+			if (m_bInitialized || m_bWindowExists || m_bContextExists)
+			{
+				throw std::exception("Do not set the menu init function after InitWindow!");
 			}
 
-			//! @brief Sets the ImGUI Menu @b rendering function. @b Required!
-			//! @attention Needs to be set @b before @b InitWindow!
-			template<typename F_>
-			void DXFW_API SetMenu_RenderFunction(F_&& fun)
+			m_menu.Init = std::forward<void()>(fun);
+			m_menuInitFuncSet = true;
+		}
+
+		//! @brief Sets the ImGUI Menu @b rendering function. @b Required!
+		//! @attention Needs to be set @b before @b InitWindow!
+		template<typename F_>
+		void DXFW_API SetMenu_RenderFunction(F_&& fun)
+		{
+			if (m_bInitialized || m_bWindowExists || m_bContextExists)
 			{
-				m_menu.Render = std::forward<void()>(fun);
+				throw std::exception("Do not set the menu rendering function after InitWindow!");
 			}
 
-			//! @brief Use this for @b ImGUI Menu toggling with @b WindowType set to @b Overlay. @n
-			//! Toggles Click Through
-			void DXFW_API ToggleWindow(TWindow& Window);
+			m_menu.Render = std::forward<void()>(fun);
+			m_menuRenderFuncSet = true;
+		}
 
-		#endif
+		//! @brief Use this for @b ImGUI Menu toggling with @b WindowType set to @b Overlay. @n
+		//! Toggles Click Through
+		void DXFW_API ToggleWindow(TWindow& Window);
+
+		//! @brief Get the current state of ShowMenu
+		[[nodiscard]]
+		bool GetShowMenu() const noexcept { return m_showMenu; };
 
 	private:
 
 		CRender() = default;
-		~CRender() override { Terminate(); }
+		~CRender() { Terminate(); }
 
 		static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam);
 		LRESULT CALLBACK DXFW_WndProc(HWND hWnd, UINT msg, WPARAM wparam, LPARAM lparam);
@@ -360,10 +318,12 @@ namespace dxfw
 		bool m_bContextExists{ false };
 		bool m_bWindowExists{ false };
 
-		#if NEED_IMGUI
-			bool m_showMenu{ false };
-			_internal::TMenu_ m_menu{};
-		#endif
+		bool m_showMenu{ false };
+
+		bool m_menuInitFuncSet{ false };
+		bool m_menuRenderFuncSet{ false };
+
+		_internal::TMenu_ m_menu{};
 
 		TWindow m_window{};
 

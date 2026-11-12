@@ -45,6 +45,9 @@ add_library(imgui STATIC
 		${imgui_SOURCE_DIR}/imgui_draw.cpp
 		${imgui_SOURCE_DIR}/imgui_tables.cpp
 		${imgui_SOURCE_DIR}/imgui_widgets.cpp
+
+		${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp
+		${imgui_SOURCE_DIR}/backends/imgui_impl_dx11.cpp
 )
 
 add_library(imgui::imgui ALIAS imgui)
@@ -77,7 +80,6 @@ add_library(DXFW11_Mini STATIC
 target_compile_definitions(DXFW11_Mini PRIVATE
 		WIN32_LEAN_AND_MEAN
 		DXFW_TRACING # For Debugging
-		DXFW_IMGUI
 )
 
 target_precompile_headers(DXFW11_Mini PUBLIC
@@ -112,6 +114,10 @@ add_executable(Tests_
 
 target_link_libraries(Tests_ PRIVATE
 		DXFW11_Mini
+)
+
+target_compile_definitions(Tests_ PRIVATE
+		DXFW_TRACING # For Debugging
 )
 
 set_target_properties(Tests_ PROPERTIES
