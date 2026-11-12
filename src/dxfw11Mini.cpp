@@ -35,7 +35,7 @@ namespace dxfw
 				m_window.Size.at(0) = static_cast<int32_t>(width);
 				m_window.Size.at(1) = static_cast<int32_t>(height);
 
-				if (!m_bInitialized && !m_bWindowExists && !m_bContextExists)
+				if (m_bInitialized && m_bWindowExists && m_bContextExists)
 					OnWindowResize(m_window);
 
 				return 0;
@@ -116,6 +116,30 @@ namespace dxfw
 		ShowWindow(m_window.HWnd, SW_SHOW);
 		UpdateWindow(m_window.HWnd);
 
+		#if NEED_IMGUI
+
+			if (!ImGui::CreateContext())
+			{
+				std::cerr << "Failed to create imgui context!\n";
+				return false;
+			}
+
+			if (!ImGui_ImplWin32_Init(m_window.HWnd))
+			{
+				std::cerr << "Failed to init Win32 imgui impl!\n";
+				return false;
+			}
+
+			if (!ImGui_ImplDX11_Init(m_device.Get(), m_context.Get()))
+			{
+				std::cerr << "Failed to init DX11 imgui impl!\n";
+				return false;
+			}
+
+			m_menu.Init();
+
+		#endif
+
 		m_bInitialized = true;
 
 		std::cout << "Window dwStyle = " << m_window.Style << '\n';
@@ -136,6 +160,12 @@ namespace dxfw
 		m_window.HWnd = nullptr;
 		m_window.Exists.store(false);
 
+		#if NEED_IMGUI
+			ImGui_ImplDX11_Shutdown();
+			ImGui_ImplWin32_Shutdown();
+			ImGui::DestroyContext();
+		#endif
+
 		m_window.ClassName.clear();
 		m_window.Title.clear();
 		m_window.Position	= {};
@@ -146,6 +176,15 @@ namespace dxfw
 		m_bInitialized	 	= false;
 
 		LOG_POINT;
+
+		if (exit == false)
+		{
+			UnregisterClassA(m_window.ClassName.c_str(), GetModuleHandleA(nullptr));
+		}
+		else
+		{
+			exit = UnregisterClassA(m_window.ClassName.c_str(), GetModuleHandleA(nullptr));
+		}
 
 		return exit != 0;
 	}
@@ -202,10 +241,10 @@ namespace dxfw
 
 		LOG_POINT;
 
-		ID3D11Texture2D* backBuffer{};
+		_internal::comptr<ID3D11Texture2D> backBuffer{};
 		hr = m_swapChain->GetBuffer(
 			0,
-			IID_PPV_ARGS(&backBuffer)
+			IID_PPV_ARGS(backBuffer.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -215,16 +254,12 @@ namespace dxfw
 
 		LOG_POINT;
 
-		hr = m_device->CreateRenderTargetView(backBuffer, nullptr, m_targetView.GetAddressOf());
+		hr = m_device->CreateRenderTargetView(backBuffer.Get(), nullptr, m_targetView.GetAddressOf());
 		if (FAILED(hr))
 		{
 			_hr_failed_msg(hr);
-
-			backBuffer->Release();
 			return false;
 		}
-
-		backBuffer->Release();
 
 		LOG_POINT;
 
@@ -393,12 +428,25 @@ namespace dxfw
 			m_targetView.Get(),
 			cc
 		);
+
+		#if NEED_IMGUI
+			ImGui_ImplDX11_NewFrame();
+			ImGui_ImplWin32_NewFrame();
+			ImGui::NewFrame();
+
+			m_menu.Render();
+		#endif
 	}
 
 	void DXFW_API CRender::EndFrame(const bool vSync)
 	{
 		if (!m_bInitialized || !m_bWindowExists || !m_bContextExists)
 			return;
+
+		#if NEED_IMGUI
+			ImGui::Render();
+			ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+		#endif
 
 		// ReSharper disable once CppTooWideScopeInitStatement
 		const HRESULT hr = m_swapChain->Present(vSync ? 1 : 0, 0);
@@ -439,10 +487,10 @@ namespace dxfw
 			return false;
 		}
 
-		ID3D11Texture2D* backBuffer{};
+		_internal::comptr<ID3D11Texture2D> backBuffer{};
 		hr = m_swapChain->GetBuffer(
 			0,
-			IID_PPV_ARGS(&backBuffer)
+			IID_PPV_ARGS(backBuffer.GetAddressOf())
 		);
 		if (FAILED(hr))
 		{
@@ -451,15 +499,13 @@ namespace dxfw
 		}
 
 		hr = m_device->CreateRenderTargetView(
-			backBuffer,
+			backBuffer.Get(),
 			nullptr,
 			m_targetView.GetAddressOf()
 		);
 		if (FAILED(hr))
 		{
 			_hr_failed_msg(hr);
-
-			backBuffer->Release();
 			return false;
 		}
 
@@ -541,6 +587,35 @@ namespace dxfw
 		}
 		return true;
 	}
+
+	#if NEED_IMGUI == 1
+
+		void DXFW_API CRender::ToggleWindow(TWindow& Window)
+		{
+			static bool wasDown = false;
+
+			const bool isDown =
+				(GetAsyncKeyState(VK_INSERT) & 0x8000) != 0;
+
+			if (isDown && !wasDown)
+			{
+				m_showMenu = !m_showMenu;
+
+				if (m_showMenu)
+					Window.ExStyle &= ~(WS_EX_TRANSPARENT | WS_EX_NOACTIVATE);
+				else
+					Window.ExStyle |= WS_EX_TRANSPARENT | WS_EX_NOACTIVATE;
+
+				SetWindowLongPtrA(
+					Window.HWnd,
+					GWL_EXSTYLE,
+					Window.ExStyle
+				);
+			}
+			wasDown = isDown;
+		}
+
+	#endif
 
 #pragma endregion
 

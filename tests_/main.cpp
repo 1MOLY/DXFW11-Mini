@@ -9,9 +9,11 @@ int main()
 	if (!dxfw::CRender::Get().InitWindow({ 1920, 1080 }, {}, "TestWindow"))
 		return -1;
 
+	std::array clearBack { 0.1F, 0.1F, 0.1F, 1.0F };
+
 	while (!dxfw::CRender::Get().WindowShouldClose())
 	{
-		dxfw::CRender::Get().BeginFrame({ 0.1F, 0.1F, 0.1F, 1.0F });
+		dxfw::CRender::Get().BeginFrame(clearBack);
 
 
 

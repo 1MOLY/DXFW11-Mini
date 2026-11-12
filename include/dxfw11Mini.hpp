@@ -14,6 +14,8 @@
 // ... mini :P... size doesn't matter btw
 //
 #pragma once
+#include <functional>
+
 #include "core/_util.hpp"
 #include "core/_tex.hpp"
 
@@ -22,12 +24,33 @@
 	#error System not Windows x64
 #endif
 
+// -+-+-+-+-+-+-+- API Flags -+-+-+-+-+-+-+-
+// Should be defined if needed
+
+#if defined(DXFW_IMGUI)
+
+	#define NEED_IMGUI 1
+
+	#include <imgui.h>
+	#include <imgui_impl_dx11.h>
+	#include <imgui_impl_win32.h>
+
+#else
+
+	#define NEED_IMGUI 0
+
+#endif
 
 // -+-+-+-+-+-+-+- used namespaces -+-+-+-+-+-+-+-
 
-
+// Public DXFW11 functions, classes, structs, consts, pointers, unions, vectors, ints, chars, unsigned ints, strings, bools, arrays, unsigned chars, constexpr s, half of this, dxfw doesn't even contain but idek
 namespace dxfw{}
+
+// DXFW11 Util things
 namespace dxfw::util{}
+
+//! DXFW11 @b internal stuff. @n
+//! If it's @b internal, u probably @b shouldn't use it
 namespace dxfw::_internal{}
 
 
@@ -52,12 +75,10 @@ namespace dxfw::_internal{}
 //! @returns bool
 #define _is_valid(v) (bool)(((void*)(v) != nullptr) > 0)
 
-
 #define _hr_failed_msg(hr) std::cerr << "HRESULT failed! Value = " << hr << '\n'
 
 
 // -+-+-+-+-+-+-+- Debug Build Specific -+-+-+-+-+-+-+-
-#define DXFW_TRACING
 
 #ifdef _DEBUG
 
@@ -93,6 +114,18 @@ namespace dxfw::_internal
 	template<typename T>
 	using comptr = ComPtr<T>;
 
+	#if NEED_IMGUI
+		#pragma pack(push, 8)
+
+		struct TMenu_
+		{
+			std::function<void()> Init{};
+			std::function<void()> Render{};
+		};
+
+		#pragma pack(pop)
+	#endif
+
 #pragma region CDraw
 
 	//! @brief Internal Drawing Functions. Use class @b CRender to draw!
@@ -115,7 +148,6 @@ namespace dxfw::_internal
 
 		CDraw() = default;
 		virtual ~CDraw() = default;
-
 
 
 #pragma region DrawList Declaration
@@ -218,7 +250,8 @@ namespace dxfw
 
 #pragma region CRender
 
-	class CRender : public _internal::CDraw {
+	class CRender : public _internal::CDraw
+	{
 
 	protected:
 
@@ -228,6 +261,8 @@ namespace dxfw
 			OVERLAY,
 			ME_NEED_NAKED
 		};
+
+		#pragma pack(push, 8)
 
 		struct TWindow
 		{
@@ -249,6 +284,8 @@ namespace dxfw
 			EWindowType WindowType{ EWindowType::NORMAL };
 		};
 
+		#pragma pack(pop)
+
 	public:
 
 		static CRender& Get() {
@@ -258,19 +295,51 @@ namespace dxfw
 		CRender(const CRender&)            = delete;
 		CRender& operator=(const CRender&) = delete;
 
+		//! @brief Initializes a D3D11 Window
 		bool DXFW_API InitWindow(std::array<int32_t, 2> Size,
-						std::array<int32_t, 2> Position,
-						const std::string& Title,
-						uint32_t TargetFPS = 60,
-						EWindowType WindowType = EWindowType::NORMAL);
+								 std::array<int32_t, 2> Position,
+								 const std::string& Title,
+								 uint32_t TargetFPS = 60,
+								 EWindowType WindowType = EWindowType::NORMAL);
 
+		//! @brief Why would you need a comment for this?
 		bool DXFW_API Terminate();
 
+		//! @brief "Window" - "Should" - "Close" @n Like should the window close in a while loop...
 		bool DXFW_API WindowShouldClose();
+
+		//! @brief @b Begins a @b frame. @n
+		//! Use ts at the @b beginning of a @b WindowShouldClose while loop
 		void DXFW_API BeginFrame(std::array<FLOAT, 4> &clearColor);
 
-		//! @brief TargetFPS does nothing if vSync is true
+		//! @brief Unlike @b BeginFrame, this @b Ends a @b Frame. @n
+		//! Use ts at the @b end of a @b WindowShouldClose while loop. @n
+		//! @attention TargetFPS does nothing if @b vSync is true.
 		void DXFW_API EndFrame(bool vSync);
+
+		#if NEED_IMGUI
+
+			//! @brief Sets the ImGUI Menu @b init function. @b Optional!
+			//! @attention Needs to be set @b before @b InitWindow!
+			template<typename F_>
+			void DXFW_API SetMenu_InitFunction(F_&& fun)
+			{
+				m_menu.Init = std::forward<void()>(fun);
+			}
+
+			//! @brief Sets the ImGUI Menu @b rendering function. @b Required!
+			//! @attention Needs to be set @b before @b InitWindow!
+			template<typename F_>
+			void DXFW_API SetMenu_RenderFunction(F_&& fun)
+			{
+				m_menu.Render = std::forward<void()>(fun);
+			}
+
+			//! @brief Use this for @b ImGUI Menu toggling with @b WindowType set to @b Overlay. @n
+			//! Toggles Click Through
+			void DXFW_API ToggleWindow(TWindow& Window);
+
+		#endif
 
 	private:
 
@@ -290,6 +359,11 @@ namespace dxfw
 		bool m_bInitialized{ false };
 		bool m_bContextExists{ false };
 		bool m_bWindowExists{ false };
+
+		#if NEED_IMGUI
+			bool m_showMenu{ false };
+			_internal::TMenu_ m_menu{};
+		#endif
 
 		TWindow m_window{};
 
