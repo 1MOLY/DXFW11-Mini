@@ -1,3 +1,5 @@
+# Development revision: 2
+
 set(SOURCE_PATH "${CMAKE_CURRENT_LIST_DIR}/../..")
 
 vcpkg_cmake_configure(
