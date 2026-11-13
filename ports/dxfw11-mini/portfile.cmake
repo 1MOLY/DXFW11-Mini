@@ -19,5 +19,5 @@ file(REMOVE_RECURSE
 )
 
 vcpkg_install_copyright(
-		FILE_LIST "${SOURCE_PATH}/LICENCE"
+		FILE_LIST "${SOURCE_PATH}/LICENCE.txt"
 )
