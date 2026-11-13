@@ -105,11 +105,6 @@ namespace dxfw::_internal
 	template<typename T>
 	using comptr = ComPtr<T>;
 
-	enum class EGetType_ {
-		RENDERER,
-		WINDOW
-	};
-
 	#pragma pack(push, 8)
 
 	struct TMenu_
@@ -218,7 +213,8 @@ namespace dxfw
 
 		//! @brief Unlike @b BeginFrame, this @b Ends a @b Frame. @n
 		//! Use ts at the @b end of a @b WindowShouldClose while loop. @n
-		//! @attention TargetFPS does nothing if @b vSync is true.
+		//! @attention @b TargetFPS does nothing if @b vSync is true. @n
+		//! @b TargetFPS does nothing either way because there is no Frame Limiter / Frame Pacing mechanism. :P
 		void DXFW_API EndFrame(bool vSync);
 
 		// -+-+-+-+-+-+-+- Get -+-+-+-+-+-+-+-
@@ -269,6 +265,7 @@ namespace dxfw
 			}
 		}
 
+		// ReSharper disable once CppMemberFunctionMayBeStatic
 		ImDrawList* GetDrawList(const EDrawListType dlType)
 		{
 			switch (dlType)
