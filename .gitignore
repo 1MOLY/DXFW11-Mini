@@ -1,2 +1,2 @@
 *.obj
-*.lib/tests
+.lib/tests
