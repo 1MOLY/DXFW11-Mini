@@ -6,9 +6,9 @@
 ### Mainly used namespaces:
 
 ```c++
-namespace dxfw { ... }          // Core Library Part
-namespace dxfw::_internal {}    // Internal Part
-namespace dxfw::util {}         // Utility Part, can be used if something is needed in your code
+namespace dxfw { ... }               // Core Library Part
+namespace dxfw::_internal { ... }    // Internal Part
+namespace dxfw::util { ... }         // Utility Part, can be used if something is needed in your code
 ```
 ---
 
