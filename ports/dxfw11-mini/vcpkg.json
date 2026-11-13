@@ -1,0 +1,23 @@
+{
+	"name": "dxfw11-mini",
+	"version-string": "1.0.0",
+	"description": "Lightweight DirectX 11 and Dear ImGui framework",
+	"supports": "windows & x64",
+	"dependencies": [
+		{
+			"name": "imgui",
+			"features": [
+				"dxfw11-binding",
+				"win32-binding"
+			]
+		},
+		{
+			"name": "vcpkg-cmake",
+			"host": true
+		},
+		{
+			"name": "vcpkg-cmake-config",
+			"host": true
+		}
+	]
+}
