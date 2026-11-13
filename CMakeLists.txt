@@ -61,6 +61,11 @@ target_link_libraries(imgui PUBLIC
 	d3d11
 )
 
+set_target_properties(imgui PROPERTIES
+		ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/.lib/vendor"
+		ARCHIVE_OUTPUT_DIRECTORY_DEBUG   "${CMAKE_SOURCE_DIR}/.lib/vendor"
+)
+
 # **********************| Targets |**********************
 
 add_library(DXFW11_Mini STATIC
@@ -102,27 +107,6 @@ target_link_libraries(DXFW11_Mini PUBLIC
 set_target_properties(DXFW11_Mini PROPERTIES
 		ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/.lib"
 		ARCHIVE_OUTPUT_DIRECTORY_DEBUG   "${CMAKE_SOURCE_DIR}/.lib"
-)
-
-# =================================================================================================
-
-# **********************| Testing |**********************
-
-add_executable(Tests_
-		tests_/main.cpp
-)
-
-target_link_libraries(Tests_ PRIVATE
-		DXFW11_Mini
-)
-
-target_compile_definitions(Tests_ PRIVATE
-		DXFW_TRACING # For Debugging
-)
-
-set_target_properties(Tests_ PROPERTIES
-		RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/.lib/tests"
-		RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/.lib/tests"
 )
 
 # =================================================================================================
