@@ -7,7 +7,7 @@
 		{
 			"name": "imgui",
 			"features": [
-				"dxfw11-binding",
+				"dx11-binding",
 				"win32-binding"
 			]
 		},
