@@ -2,6 +2,8 @@
 // Created by Lukas on 11 Nov. 2026.
 //
 #pragma once
+#include <cstdint>
+#include <array>
 
 
 namespace dxfw::_internal::tex

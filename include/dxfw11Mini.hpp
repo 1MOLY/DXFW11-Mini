@@ -14,9 +14,26 @@
 // ... mini :P... size doesn't matter btw
 //
 #pragma once
+
+#pragma region Includes
+#include <cstdio>
+#include <cstdint>
+#include <array>
+#include <string>
+#include <stdexcept>
+#include <random>
+#include <variant>
+#include <Windows.h>
+#include <wrl/client.h>
+#include <d3d11.h>
+#include <dwmapi.h>
+#include <dxgi.h>
+#include <d3dcompiler.h>
+#include <functional>
+
 #include "core/_util.hpp"
 #include "core/_tex.hpp"
-
+#pragma endregion
 
 #ifndef _WIN64
 	#error System not Windows x64
@@ -118,7 +135,7 @@ namespace dxfw::_internal
 
 namespace dxfw
 {
-
+#pragma region Enums
 	// Get | From | Renderer
 	enum class E_GFR
 	{
@@ -155,6 +172,7 @@ namespace dxfw
 		OVERLAY,
 		ME_NEED_NAKED
 	};
+#pragma endregion
 
 #pragma region CRender
 
