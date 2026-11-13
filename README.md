@@ -24,7 +24,7 @@ namespace dxfw::util {}         // Utility Part, can be used if something is nee
 ---
 
 ### Usage:
-###### [Complete Example](EXAMPLES.md)
+###### [Complete Example](.docs/EXAMPLES.md)
 
 ```c++ 
 dxfw::CRender::Get()    // singleton getter for the core rendering class
